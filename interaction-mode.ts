@@ -1,7 +1,7 @@
 /**
  * interaction-mode — per-session interaction mode, injected after the system prompt.
  *
- * - scope: what the agent may touch. stance: what the agent may say.
+ * - scope: what the agent may deliver. stance: what the agent may say.
  *
  * No prompts. Each session starts with the configured default (wide + advise), stored
  * in interaction-mode.json next to this file.
@@ -27,24 +27,21 @@ const SCOPE_RULES: Record<Scope, string> = {
     "Produce only the single thing that was explicitly requested. Do not change any code or content that was not named, even if it is obviously broken. Do not add unrequested error handling, logging, comments, tests, or type annotations.",
     "Output contains only the deliverable itself.",
   ].join("\n"),
-  wide: [
-    "### Scope=wide",
-    "Do the adjacent work required for the deliverable to be usable: compile/run verification, updating call sites of changed symbols, following the declarations and tests that change. Test: if the deliverable would be broken without this step -> do it, otherwise -> do not.",
-  ].join("\n"),
+  wide: "### Scope=wide\nPerform as normal.",
 };
 
 const STANCE_RULES: Record<Stance, string> = {
   silent: [
     "### Stance=silent",
-    "Forbidden output: alternatives, pros/cons analysis, risk warnings, next-step suggestions, judgement of the user's technical choice, \"a better approach would be...\". Do not mention problems found outside scope either.",
+    "Do not question about anything the user says. Do not give suggestions or opinions. Do not push back even if there is an obvious problem. Answer only what the user directly asks for.",
   ].join("\n"),
   advise: [
     "### Stance=advise",
-    "The deliverable itself must not carry opinions. After it, append an \"Alternatives\" section: at most 3 items, at most 2 sentences each, format [specific problem] -> [alternative approach]. Omit the section when there is no substantive opinion.",
+    "Give suggestions and opinions if you find obvious problems in what the user is trying to (let you) do.",
   ].join("\n"),
   critique: [
     "### Stance=critique",
-    "(Ignore the scope setting) The goal is to find defects, not to comply; you may question the requirement itself. Every point must include location (which line/which field) + trigger condition (under what input it breaks). Do not raise anything that cannot be anchored to a specific location. Sort by severity, do not pad. End with a verdict: usable / usable after changes / not usable.",
+    "Verify, and question **everything** the user says and **every** assumption the user makes, including whether the requirement is really necessary and reasonable. Do not perform any other operation unless all problems have been addressed.",
   ].join("\n"),
 };
 
@@ -55,7 +52,7 @@ const ENTRY_TYPE = "interaction_mode";
 function buildBlock(mode: Mode): string {
   return [
     "## Interaction Mode",
-    `Scope: ${mode.scope} - what you may touch`,
+    `Scope: ${mode.scope} - what you may deliver`,
     `Stance: ${mode.stance} - what you may say`,
     "",
     SCOPE_RULES[mode.scope],
@@ -176,7 +173,7 @@ export default function (pi: ExtensionAPI) {
         [
           `Current: ${describe(current)}${hasUserMessage(ctx) ? " (locked for this session)" : ""}`,
           "",
-          "Scope - what you may touch:",
+          "Scope - what you may deliver:",
           ...SCOPES.map((s) => annotate(SCOPE_RULES[s], s === current.scope)),
           "",
           "Stance - what you may say:",
